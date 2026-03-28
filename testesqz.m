@@ -84,10 +84,54 @@ title('lena512.bmp');
 
 
 % insert code here
-Ar=A; % this is temporary, to be replaced by the new code
+N_values_img = 2:8;
+SNR_img_dB = zeros(size(N_values_img));
+Ar_last = A;
 
-Ar=uint8(Ar*255.0); % converts to "uint" format
-figure(3)
-imshow(Ar,[0 255]); % displays modified image
-title('modified Lena');
+for k = 1:length(N_values_img)
+	N = N_values_img(k);
+	L = 2^N;
+	delta = 1/L; % quantization step for range [0, 1]
+
+	% Uniform quantizer (mid-rise) in [0, 1]
+	q_index = floor(A/delta);
+	q_index = max(min(q_index, L - 1), 0);
+	Ar_rec = (q_index + 0.5)*delta;
+
+	err_img = A - Ar_rec; % quantization error image
+
+	signal_power = sum(A(:).^2);
+	noise_power = sum(err_img(:).^2);
+	SNR_img_dB(k) = 10*log10(signal_power/noise_power);
+
+	fprintf('Image: N = %2d bits -> SNR = %6.2f dB\n', N, SNR_img_dB(k));
+
+	% Optional visualization for each N:
+	%figure(10 + N)
+	%imshow(uint8(Ar_rec*255), [0 255]); title(sprintf('Re-quantized image (N=%d)', N));
+	figure(20 + N)
+	subplot(1,2,1); imshow(uint8(Ar_rec*255), [0 255]); title(sprintf('Re-quantized image (N=%d)', N));
+	subplot(1,2,2); imshow(err_img, []); title(sprintf('Error image (N=%d)', N));
+
+	if N == 8
+		Ar_last = Ar_rec;
+	end
+end
+
+% First-order model SNR_dB = a*N + b
+p_img = polyfit(N_values_img, SNR_img_dB, 1);
+SNR_img_fit = polyval(p_img, N_values_img);
+
+figure(5)
+plot(N_values_img, SNR_img_dB, 'o-', 'LineWidth', 1.5);
+hold on;
+plot(N_values_img, SNR_img_fit, '--', 'LineWidth', 1.5);
+grid on;
+xlabel('N (bits)');
+ylabel('SNR (dB)');
+title('SNR vs Number of Bits (Image Re-quantization)');
+legend('Measured SNR', sprintf('Linear fit: SNR = %.3fN + %.3f', p_img(1), p_img(2)), 'Location', 'northwest');
+hold off;
+
+fprintf('Image linear model (1st order): SNR_dB = %.6f * N + %.6f\n', p_img(1), p_img(2));
 
