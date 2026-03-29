@@ -9,6 +9,7 @@ x = sin(0.22*samples);
 N_values = 2:14;
 SNR_dB = zeros(size(N_values));
 rho_xe = zeros(size(N_values));
+e_all = cell(size(N_values));
 
 for k = 1:length(N_values)
     N = N_values(k);
@@ -21,6 +22,7 @@ for k = 1:length(N_values)
     x_rec = -1 + (q_index + 0.5)*delta;
 
     e = x - x_rec; % quantization error
+    e_all{k} = e;
 
     R = corrcoef(x, e); % normalized cross-correlation at zero lag
     rho_xe(k) = R(1,2);
@@ -30,6 +32,31 @@ for k = 1:length(N_values)
     SNR_dB(k) = 10*log10(signal_power/noise_power);
 
     fprintf('Sinusoid: N = %2d bits -> SNR = %7.3f dB, corr(x,e) = %+0.6f\n', N, SNR_dB(k), rho_xe(k));
+end
+
+% Item 5(iii): PDF evolution from original sinusoid to quantization error
+figure(3)
+tiledlayout(4,4, 'Padding', 'compact', 'TileSpacing', 'compact');
+
+nexttile;
+[H_x, X_x] = hist(x, 50);
+equalize_x = 50/(max(x) - min(x));
+bar(X_x, H_x/sum(H_x)*equalize_x, 0.5);
+grid on;
+xlabel('x[n] amplitude');
+ylabel('PDF');
+title('Original sinusoid');
+
+for k = 1:length(N_values)
+    nexttile;
+    e_k = e_all{k};
+    [H_e, X_e] = hist(e_k, 50);
+    equalize_e = 50/(max(e_k) - min(e_k));
+    bar(X_e, H_e/sum(H_e)*equalize_e, 0.5);
+    grid on;
+    xlabel('x[n] amplitude');
+    ylabel('PDF');
+    title(sprintf('Error PDF (N=%d)', N_values(k)));
 end
 
 % First-order model from measured values
